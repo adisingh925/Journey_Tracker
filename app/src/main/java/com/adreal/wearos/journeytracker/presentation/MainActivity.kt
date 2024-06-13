@@ -7,12 +7,15 @@
 package com.adreal.wearos.journeytracker.presentation
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.FloatingActionButton
 import androidx.compose.runtime.Composable
@@ -41,6 +43,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -48,7 +51,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.Text
-import androidx.wear.compose.material.TimeText
 import com.adreal.wearos.journeytracker.R
 import kotlinx.coroutines.delay
 
@@ -61,7 +63,44 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val navController = rememberNavController()
-            NavHost(navController, startDestination = Constants.HOME_SCREEN) {
+            NavHost(navController, startDestination = Constants.HOME_SCREEN,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { 1000 },
+                        animationSpec = tween(
+                            durationMillis = 400,
+                            easing = FastOutSlowInEasing // Apply easing for smoother motion
+                        )
+                    )
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -1000 },
+                        animationSpec = tween(
+                            durationMillis = 400,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -1000 },
+                        animationSpec = tween(
+                            durationMillis = 400,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { 1000 },
+                        animationSpec = tween(
+                            durationMillis = 400,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                }
+            ) {
                 composable(Constants.HOME_SCREEN) { DisplayRideButtons(navController) }
                 composable(
                     Constants.TIMER_SCREEN,
@@ -71,7 +110,7 @@ class MainActivity : ComponentActivity() {
                 ) { backStackEntry ->
                     SecondScreen(
                         backStackEntry.arguments?.getInt(Constants.COMMUTE_TYPE)
-                            ?: Constants.DEFAULT
+                            ?: Constants.DEFAULT, navController
                     )
                 }
             }
@@ -109,7 +148,7 @@ fun DisplayRideButtons(navController: NavController) {
                     )
                 }
                 FloatingActionButton(
-                    onClick = { },
+                    onClick = { navController.navigate("${Constants.TIMER}/${Constants.CYCLE}") },
                     modifier = Modifier
                         .height(60.dp)
                         .width(60.dp),
@@ -127,10 +166,17 @@ fun DisplayRideButtons(navController: NavController) {
 }
 
 @Composable
-fun SecondScreen(commuteType: Int) {
+fun SecondScreen(commuteType: Int, navController: NavController) {
     var tapCount by remember { mutableIntStateOf(0) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
-    var backgroundColor by remember { mutableStateOf(getCurrentBackgroundColor(commuteType, tapCount)) }
+    var backgroundColor by remember {
+        mutableStateOf(
+            getCurrentBackgroundColor(
+                commuteType,
+                tapCount
+            )
+        )
+    }
     var textColor by remember { mutableStateOf(getTextColor(backgroundColor)) }
 
     LaunchedEffect(Unit) {
@@ -147,9 +193,13 @@ fun SecondScreen(commuteType: Int) {
                 detectTapGestures(
                     onTap = {
                         tapCount++
-                        elapsedSeconds = 0
-                        backgroundColor = getCurrentBackgroundColor(commuteType, tapCount)
-                        textColor = getTextColor(backgroundColor)
+                        if (isTripEnded(commuteType, tapCount)) {
+                            navController.popBackStack()
+                        } else {
+                            elapsedSeconds = 0
+                            backgroundColor = getCurrentBackgroundColor(commuteType, tapCount)
+                            textColor = getTextColor(backgroundColor)
+                        }
                     }
                 )
             }
@@ -174,6 +224,13 @@ fun formatTime(totalSeconds: Int): String {
     return String.format("%02d:%02d:%02d", hours, minutes, seconds)
 }
 
+fun isTripEnded(commuteType: Int, tapCount: Int): Boolean {
+    return when (commuteType) {
+        Constants.MOTORCYCLE -> tapCount >= 2
+        Constants.CYCLE -> tapCount >= 3
+        else -> false
+    }
+}
 
 fun getCurrentBackgroundColor(commuteType: Int, tapCount: Int): Color {
     when (commuteType) {
