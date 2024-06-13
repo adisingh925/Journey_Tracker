@@ -7,9 +7,10 @@
 package com.adreal.wearos.journeytracker.presentation
 
 import android.os.Bundle
+import android.util.Log
+import android.view.Display
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
@@ -20,12 +21,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Card
 import androidx.compose.material.FloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,7 +60,11 @@ import androidx.navigation.navArgument
 import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.Text
 import com.adreal.wearos.journeytracker.R
+import com.adreal.wearos.journeytracker.presentation.model.JourneyModel
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,6 +72,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setTheme(android.R.style.Theme_DeviceDefault)
+        SharedPreferences.init(this)
 
         setContent {
             val navController = rememberNavController()
@@ -108,11 +121,12 @@ class MainActivity : ComponentActivity() {
                         defaultValue = Constants.DEFAULT
                     })
                 ) { backStackEntry ->
-                    SecondScreen(
+                    TimerScreen(
                         backStackEntry.arguments?.getInt(Constants.COMMUTE_TYPE)
                             ?: Constants.DEFAULT, navController
                     )
                 }
+                composable(Constants.RECORDS) { DisplayRecords() }
             }
         }
     }
@@ -160,13 +174,26 @@ fun DisplayRideButtons(navController: NavController) {
                         contentDescription = "Cycle"
                     )
                 }
+                FloatingActionButton(
+                    onClick = { navController.navigate(Constants.RECORDS) },
+                    modifier = Modifier
+                        .height(60.dp)
+                        .width(60.dp),
+                    backgroundColor = Color.DarkGray
+                ) {
+                    Icon(
+                        modifier = Modifier.padding(10.dp),
+                        painter = painterResource(id = R.drawable.analytics),
+                        contentDescription = "Cycle"
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun SecondScreen(commuteType: Int, navController: NavController) {
+fun TimerScreen(commuteType: Int, navController: NavController) {
     var tapCount by remember { mutableIntStateOf(0) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var backgroundColor by remember {
@@ -180,6 +207,7 @@ fun SecondScreen(commuteType: Int, navController: NavController) {
     var textColor by remember { mutableStateOf(getTextColor(backgroundColor)) }
 
     LaunchedEffect(Unit) {
+        insertTimeStamp(commuteType)
         while (true) {
             delay(1000)
             elapsedSeconds++
@@ -194,8 +222,11 @@ fun SecondScreen(commuteType: Int, navController: NavController) {
                     onTap = {
                         tapCount++
                         if (isTripEnded(commuteType, tapCount)) {
-                            navController.popBackStack()
+//                            navController.popBackStack()
+                            insertTimeStamp(commuteType, 1)
+                            navController.navigate(Constants.RECORDS)
                         } else {
+                            insertTimeStamp(commuteType)
                             elapsedSeconds = 0
                             backgroundColor = getCurrentBackgroundColor(commuteType, tapCount)
                             textColor = getTextColor(backgroundColor)
@@ -261,6 +292,253 @@ fun getTextColor(backgroundColor: Color): Color {
         Color.Black
     } else {
         Color.White
+    }
+}
+
+fun insertTimeStamp(commuteType: Int, isFinished: Int = 0) {
+    val id = SharedPreferences.read("id", 0)
+
+    if (SharedPreferences.read("${id}_commute", 0) == 0) {
+        SharedPreferences.write("${id}_commute", commuteType)
+    }
+
+    val timestampsList = SharedPreferences.read("${id}_timestamps", "").toString()
+
+    if (timestampsList.isEmpty()) {
+        SharedPreferences.write("${id}_timestamps", System.currentTimeMillis().toString())
+    } else {
+        SharedPreferences.write(
+            "${id}_timestamps",
+            "${timestampsList},${System.currentTimeMillis()}"
+        )
+    }
+
+    if (isFinished == 1) {
+        SharedPreferences.write("id", id + 1)
+    }
+}
+
+@Composable
+fun DisplayRecords() {
+    val id = SharedPreferences.read("id", 0)
+    val records = mutableListOf<JourneyModel>()
+
+    Log.d("Journey", "id: $id")
+
+    for (i in (id - 1) downTo 0) {
+        Log.d("Journey", "id: $i")
+        val commute = SharedPreferences.read("${i}_commute", 0)
+        val timestamps = SharedPreferences.read("${i}_timestamps", "").toString().split(",")
+        Log.d("Journey", "commute: $timestamps")
+        records.add(JourneyModel(i, commute, timestamps.map { it.toLong() }))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(11.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        records.forEach { record ->
+            JourneyCard(record)
+        }
+    }
+}
+
+@Composable
+fun JourneyCard(journey: JourneyModel) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        elevation = 4.dp,
+        shape = RoundedCornerShape(11.dp) // Rounded corners with 11.dp radius
+    ) {
+        Column(
+            modifier = Modifier
+                .background(Color.DarkGray)
+                .padding(11.dp)
+        ) {
+            val startTime = formatTimestamp(journey.timestamps.firstOrNull())
+            val endTime = formatTimestamp(journey.timestamps.lastOrNull())
+            val totalTime = calculateTotalTime(journey.timestamps)
+
+            Text(
+                text = if (journey.commute == Constants.MOTORCYCLE) "Motorcycle" else "Cycle",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (journey.commute == Constants.MOTORCYCLE) {
+                Text(
+                    text = "Start Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = startTime,
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Riding Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = calculateTotalTime(listOf(journey.timestamps[0], journey.timestamps[1])),
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Walk Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = calculateTotalTime(listOf(journey.timestamps[1], journey.timestamps[2])),
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Total Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = totalTime,
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "End Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = endTime,
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+            } else {
+                Text(
+                    text = "Start Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = startTime,
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Walk Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = calculateTotalTime(listOf(journey.timestamps[0], journey.timestamps[1])),
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Riding Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = calculateTotalTime(listOf(journey.timestamps[1], journey.timestamps[2])),
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Walk Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = calculateTotalTime(listOf(journey.timestamps[2], journey.timestamps[3])),
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Total Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = totalTime,
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "End Time:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = endTime,
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+
+fun formatTimestamp(timestamp: Long?): String {
+    return if (timestamp != null) {
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        sdf.format(Date(timestamp))
+    } else {
+        "N/A"
+    }
+}
+
+fun calculateTotalTime(timestamps: List<Long>): String {
+    return if (timestamps.isNotEmpty()) {
+        val totalTimeMillis = timestamps.last() - timestamps.first()
+        val seconds = (totalTimeMillis / 1000) % 60
+        val minutes = (totalTimeMillis / (1000 * 60)) % 60
+        val hours = (totalTimeMillis / (1000 * 60 * 60)) % 24
+        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        "N/A"
     }
 }
 

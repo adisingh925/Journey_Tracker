@@ -6,6 +6,7 @@ object Constants {
     const val COMMUTE_TYPE = "commute"
     const val TIMER_SCREEN = "timer/{commute}"
     const val TIMER = "timer"
+    const val RECORDS = "records"
 
     //commutes
     const val CYCLE = 1
