@@ -354,7 +354,6 @@ fun JourneyCard(journey: JourneyModel) {
                 .background(Color.DarkGray)
                 .padding(11.dp)
         ) {
-            val startTime = formatTimestamp(journey.timestamps.firstOrNull())
             val endTime = formatTimestamp(journey.timestamps.lastOrNull())
             val totalTime = calculateTotalTime(journey.timestamps)
 
@@ -368,59 +367,33 @@ fun JourneyCard(journey: JourneyModel) {
 
             if (journey.commute == Constants.MOTORCYCLE) {
                 Text(
-                    text = "Start Time:",
+                    text = "Riding Started",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = startTime,
+                    text = formatTimestamp(journey.timestamps[0]),
                     fontSize = 11.sp,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Riding Time:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = calculateTotalTime(listOf(journey.timestamps[0], journey.timestamps[1])),
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Walk Time:",
+                    text = "Riding Finished / Walking Started",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = calculateTotalTime(listOf(journey.timestamps[1], journey.timestamps[2])),
+                    text = formatTimestamp(journey.timestamps[1]),
                     fontSize = 11.sp,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Total Time:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = totalTime,
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "End Time:",
+                    text = "Walking Finished",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -428,64 +401,78 @@ fun JourneyCard(journey: JourneyModel) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = endTime,
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Journey Time",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = totalTime,
                     fontSize = 11.sp,
                     color = Color.White
                 )
             } else {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Start Time:",
+                    text = "Walking Started",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = startTime,
+                    text = formatTimestamp(journey.timestamps[0]),
                     fontSize = 11.sp,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Walk Time:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = calculateTotalTime(listOf(journey.timestamps[0], journey.timestamps[1])),
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Riding Time:",
+                    text = "Walking Finished / Riding Started",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = calculateTotalTime(listOf(journey.timestamps[1], journey.timestamps[2])),
+                    text = formatTimestamp(journey.timestamps[1]),
                     fontSize = 11.sp,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Walk Time:",
+                    text = "Riding Finished / Walking Started",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = calculateTotalTime(listOf(journey.timestamps[2], journey.timestamps[3])),
+                    text = formatTimestamp(journey.timestamps[2]),
                     fontSize = 11.sp,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Total Time:",
+                    text = "Walking Finished",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = formatTimestamp(journey.timestamps[3]),
+                    fontSize = 11.sp,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Journey Time",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -493,19 +480,6 @@ fun JourneyCard(journey: JourneyModel) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = totalTime,
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "End Time:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = endTime,
                     fontSize = 11.sp,
                     color = Color.White
                 )
