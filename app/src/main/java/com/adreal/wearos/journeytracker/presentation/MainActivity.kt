@@ -8,7 +8,6 @@ package com.adreal.wearos.journeytracker.presentation
 
 import android.os.Bundle
 import android.util.Log
-import android.view.Display
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -29,9 +28,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Card
 import androidx.compose.material.FloatingActionButton
 import androidx.compose.runtime.Composable
@@ -323,28 +321,24 @@ fun DisplayRecords() {
     val id = SharedPreferences.read("id", 0)
     val records = mutableListOf<JourneyModel>()
 
-    Log.d("Journey", "id: $id")
-
     for (i in (id - 1) downTo 0) {
-        Log.d("Journey", "id: $i")
         val commute = SharedPreferences.read("${i}_commute", 0)
         val timestamps = SharedPreferences.read("${i}_timestamps", "").toString().split(",")
-        Log.d("Journey", "commute: $timestamps")
         records.add(JourneyModel(i, commute, timestamps.map { it.toLong() }))
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(11.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        records.forEach { record ->
+        items(records) { record ->
             JourneyCard(record)
         }
     }
 }
+
 
 @Composable
 fun JourneyCard(journey: JourneyModel) {
