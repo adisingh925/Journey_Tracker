@@ -7,6 +7,7 @@
 package com.adreal.wearos.journeytracker.presentation
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -131,6 +132,16 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DisplayRideButtons(navController: NavController) {
+
+    LaunchedEffect(Unit) {
+        if (isIncompleteJourney()) {
+            Log.d("JourneyTracker", "Previous journey is incomplete")
+            val commute = SharedPreferences.read("${SharedPreferences.read("id", 0)}_commute", 0)
+            navController.navigate("${Constants.TIMER}/${commute}")
+        }
+    }
+
+    Log.d("JourneyTracker", "Previous journey is completed")
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -189,9 +200,20 @@ fun DisplayRideButtons(navController: NavController) {
     }
 }
 
+fun getTapCount(): Int {
+    val id = SharedPreferences.read("id", 0)
+    val timestamps = SharedPreferences.read("${id}_timestamps", "").toString()
+        .split(",")
+        .filter { it.isNotEmpty() }
+
+    Log.d("JourneyTracker", "Timestamp size for tap count: ${timestamps.size}")
+
+    return timestamps.size
+}
+
 @Composable
 fun TimerScreen(commuteType: Int, navController: NavController) {
-    var tapCount by remember { mutableIntStateOf(0) }
+    var tapCount by remember { mutableIntStateOf(getTapCount()) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
     var backgroundColor by remember {
         mutableStateOf(
@@ -203,8 +225,17 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
     }
     var textColor by remember { mutableStateOf(getTextColor(backgroundColor)) }
 
+    LaunchedEffect(tapCount) {
+        // Update UI or perform other actions when tapCount changes
+        backgroundColor = getCurrentBackgroundColor(commuteType, tapCount)
+        textColor = getTextColor(backgroundColor)
+    }
+
     LaunchedEffect(Unit) {
-        insertTimeStamp(commuteType)
+        if (tapCount == 0) {
+            tapCount++
+            insertTimeStamp(commuteType)
+        }
         while (true) {
             delay(100)
             elapsedSeconds = ((System.currentTimeMillis() - getLatestTimestamp()) / 1000).toInt()
@@ -224,8 +255,6 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
                         } else {
                             insertTimeStamp(commuteType)
                             elapsedSeconds = 0
-                            backgroundColor = getCurrentBackgroundColor(commuteType, tapCount)
-                            textColor = getTextColor(backgroundColor)
                         }
                     }
                 )
@@ -244,9 +273,10 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
 
 fun getLatestTimestamp(): Long {
     val id = SharedPreferences.read("id", 0)
-    val latestTimestamp = SharedPreferences.read("${id}_timestamps", System.currentTimeMillis().toString())
-        .toString()
-        .split(",").last().toLong()
+    val latestTimestamp =
+        SharedPreferences.read("${id}_timestamps", System.currentTimeMillis().toString())
+            .toString()
+            .split(",").last().toLong()
 
     return latestTimestamp
 }
@@ -262,8 +292,8 @@ fun formatTime(totalSeconds: Int): String {
 
 fun isTripEnded(commuteType: Int, tapCount: Int): Boolean {
     return when (commuteType) {
-        Constants.MOTORCYCLE -> tapCount >= 2
-        Constants.CYCLE -> tapCount >= 3
+        Constants.MOTORCYCLE -> tapCount >= 3
+        Constants.CYCLE -> tapCount >= 4
         else -> false
     }
 }
@@ -272,17 +302,17 @@ fun getCurrentBackgroundColor(commuteType: Int, tapCount: Int): Color {
     when (commuteType) {
         Constants.MOTORCYCLE -> {
             return when (tapCount) {
-                0 -> Color.Blue
-                1 -> Color.Yellow
+                1 -> Color.Blue
+                2 -> Color.Yellow
                 else -> Color.Red
             }
         }
 
         Constants.CYCLE -> {
             return when (tapCount) {
-                0 -> Color.Yellow
-                1 -> Color.Blue
-                2 -> Color.Yellow
+                1 -> Color.Yellow
+                2 -> Color.Blue
+                3 -> Color.Yellow
                 else -> Color.Red
             }
         }
@@ -502,6 +532,28 @@ fun formatTimestamp(timestamp: Long?): String {
     } else {
         "N/A"
     }
+}
+
+fun isIncompleteJourney(): Boolean {
+    val id = SharedPreferences.read("id", 0)
+    val timestamps = SharedPreferences.read("${id}_timestamps", "").toString()
+        .split(",")
+        .filter { it.isNotEmpty() }
+
+    val commuteType = SharedPreferences.read("${id}_commute", 0)
+
+    Log.d("JourneyTracker", "Timestamp size: ${timestamps.size}")
+    Log.d("timestamp value", timestamps.toString())
+
+    if (timestamps.isEmpty()) {
+        return false
+    } else if (commuteType == Constants.MOTORCYCLE && timestamps.size < 3) {
+        return true
+    } else if (commuteType == Constants.CYCLE && timestamps.size < 4) {
+        return true
+    }
+
+    return false
 }
 
 fun calculateTotalTime(timestamps: List<Long>): String {
