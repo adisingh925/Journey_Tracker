@@ -206,8 +206,8 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
     LaunchedEffect(Unit) {
         insertTimeStamp(commuteType)
         while (true) {
-            delay(1000)
-            elapsedSeconds++
+            delay(100)
+            elapsedSeconds = ((System.currentTimeMillis() - getLatestTimestamp()) / 1000).toInt()
         }
     }
 
@@ -219,7 +219,6 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
                     onTap = {
                         tapCount++
                         if (isTripEnded(commuteType, tapCount)) {
-//                            navController.popBackStack()
                             insertTimeStamp(commuteType, 1)
                             navController.navigate(Constants.RECORDS)
                         } else {
@@ -241,6 +240,19 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
             color = textColor
         )
     }
+}
+
+fun getLatestTimestamp(): Long {
+    val id = SharedPreferences.read("id", -1)
+    var latestTimestamp = 0L
+
+    if (id != -1) {
+        latestTimestamp = SharedPreferences.read("${id}_timestamps", System.currentTimeMillis().toString())
+            .toString()
+            .split(",").last().toLong()
+    }
+
+    return latestTimestamp
 }
 
 @Composable
@@ -337,7 +349,6 @@ fun DisplayRecords() {
         }
     }
 }
-
 
 @Composable
 fun JourneyCard(journey: JourneyModel) {
