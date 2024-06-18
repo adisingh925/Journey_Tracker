@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -135,13 +136,11 @@ fun DisplayRideButtons(navController: NavController) {
 
     LaunchedEffect(Unit) {
         if (isIncompleteJourney()) {
-            Log.d("JourneyTracker", "Previous journey is incomplete")
             val commute = SharedPreferences.read("${SharedPreferences.read("id", 0)}_commute", 0)
             navController.navigate("${Constants.TIMER}/${commute}")
         }
     }
 
-    Log.d("JourneyTracker", "Previous journey is completed")
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -206,8 +205,6 @@ fun getTapCount(): Int {
         .split(",")
         .filter { it.isNotEmpty() }
 
-    Log.d("JourneyTracker", "Timestamp size for tap count: ${timestamps.size}")
-
     return timestamps.size
 }
 
@@ -215,6 +212,7 @@ fun getTapCount(): Int {
 fun TimerScreen(commuteType: Int, navController: NavController) {
     var tapCount by remember { mutableIntStateOf(getTapCount()) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
+    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var backgroundColor by remember {
         mutableStateOf(
             getCurrentBackgroundColor(
@@ -239,6 +237,7 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
         while (true) {
             delay(100)
             elapsedSeconds = ((System.currentTimeMillis() - getLatestTimestamp()) / 1000).toInt()
+            currentTime = System.currentTimeMillis()
         }
     }
 
@@ -262,12 +261,22 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
             .background(backgroundColor),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = formatTime(totalSeconds = elapsedSeconds),
-            textAlign = TextAlign.Center,
-            fontSize = 40.sp,
-            color = textColor
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = getCurrentTime(currentTime),
+                fontSize = 30.sp,
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = formatTime(totalSeconds = elapsedSeconds),
+                textAlign = TextAlign.Center,
+                fontSize = 30.sp,
+                color = textColor
+            )
+        }
     }
 }
 
@@ -534,6 +543,11 @@ fun formatTimestamp(timestamp: Long?): String {
     }
 }
 
+fun getCurrentTime(timestamp: Long?): String {
+    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    return sdf.format(Date(System.currentTimeMillis()))
+}
+
 fun isIncompleteJourney(): Boolean {
     val id = SharedPreferences.read("id", 0)
     val timestamps = SharedPreferences.read("${id}_timestamps", "").toString()
@@ -541,9 +555,6 @@ fun isIncompleteJourney(): Boolean {
         .filter { it.isNotEmpty() }
 
     val commuteType = SharedPreferences.read("${id}_commute", 0)
-
-    Log.d("JourneyTracker", "Timestamp size: ${timestamps.size}")
-    Log.d("timestamp value", timestamps.toString())
 
     if (timestamps.isEmpty()) {
         return false
