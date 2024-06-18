@@ -243,14 +243,10 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
 }
 
 fun getLatestTimestamp(): Long {
-    val id = SharedPreferences.read("id", -1)
-    var latestTimestamp = 0L
-
-    if (id != -1) {
-        latestTimestamp = SharedPreferences.read("${id}_timestamps", System.currentTimeMillis().toString())
-            .toString()
-            .split(",").last().toLong()
-    }
+    val id = SharedPreferences.read("id", 0)
+    val latestTimestamp = SharedPreferences.read("${id}_timestamps", System.currentTimeMillis().toString())
+        .toString()
+        .split(",").last().toLong()
 
     return latestTimestamp
 }
