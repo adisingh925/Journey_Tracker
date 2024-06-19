@@ -11,7 +11,7 @@ android {
         applicationId = "com.adreal.wearos.journeytracker"
         minSdk = 30
         targetSdk = 34
-        versionCode = 2
+        versionCode = 3
         versionName = "1.0"
         vectorDrawables {
             useSupportLibrary = true
@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.core.splashscreen)
     implementation(libs.navigation.compose)
+    implementation(libs.wear)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)

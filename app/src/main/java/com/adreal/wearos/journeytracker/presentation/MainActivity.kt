@@ -56,6 +56,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.wear.ambient.AmbientLifecycleObserver
 import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.Text
 import com.adreal.wearos.journeytracker.R
@@ -66,12 +67,33 @@ import java.util.Date
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
+
+    private val ambientCallback = object : AmbientLifecycleObserver.AmbientLifecycleCallback {
+        override fun onEnterAmbient(ambientDetails: AmbientLifecycleObserver.AmbientDetails) {
+            Log.d("Ambient", "Entering ambient mode")
+        }
+
+        override fun onExitAmbient() {
+            Log.d("Ambient", "Exiting ambient mode")
+        }
+
+        override fun onUpdateAmbient() {
+            // ... Called by the system in order to allow the app to periodically
+            // update the display while in ambient mode. Typically the system will
+            // call this every 60 seconds.
+            Log.d("Ambient", "Updating ambient mode")
+        }
+    }
+
+    private val ambientObserver = AmbientLifecycleObserver(this, ambientCallback)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
         setTheme(android.R.style.Theme_DeviceDefault)
         SharedPreferences.init(this)
+        lifecycle.addObserver(ambientObserver)
 
         setContent {
             val navController = rememberNavController()
