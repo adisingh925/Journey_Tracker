@@ -8,6 +8,7 @@ package com.adreal.wearos.journeytracker.presentation
 
 import android.os.Bundle
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -28,7 +29,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.FloatingActionButton
@@ -78,9 +78,6 @@ class MainActivity : ComponentActivity() {
         }
 
         override fun onUpdateAmbient() {
-            // ... Called by the system in order to allow the app to periodically
-            // update the display while in ambient mode. Typically the system will
-            // call this every 60 seconds.
             Log.d("Ambient", "Updating ambient mode")
         }
     }
@@ -91,19 +88,24 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
+        // ✅ Keep the screen on as long as this activity is running
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         setTheme(android.R.style.Theme_DeviceDefault)
         SharedPreferences.init(this)
         lifecycle.addObserver(ambientObserver)
 
         setContent {
             val navController = rememberNavController()
-            NavHost(navController, startDestination = Constants.HOME_SCREEN,
+            NavHost(
+                navController = navController,
+                startDestination = Constants.HOME_SCREEN,
                 enterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { 1000 },
                         animationSpec = tween(
                             durationMillis = 400,
-                            easing = FastOutSlowInEasing // Apply easing for smoother motion
+                            easing = FastOutSlowInEasing
                         )
                     )
                 },
@@ -144,7 +146,8 @@ class MainActivity : ComponentActivity() {
                 ) { backStackEntry ->
                     TimerScreen(
                         backStackEntry.arguments?.getInt(Constants.COMMUTE_TYPE)
-                            ?: Constants.DEFAULT, navController
+                            ?: Constants.DEFAULT,
+                        navController
                     )
                 }
                 composable(Constants.RECORDS) { DisplayRecords() }
@@ -234,7 +237,6 @@ fun getTapCount(): Int {
 fun TimerScreen(commuteType: Int, navController: NavController) {
     var tapCount by remember { mutableIntStateOf(getTapCount()) }
     var elapsedSeconds by remember { mutableIntStateOf(0) }
-    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var backgroundColor by remember {
         mutableStateOf(
             getCurrentBackgroundColor(
@@ -259,35 +261,41 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
         while (true) {
             delay(100)
             elapsedSeconds = ((System.currentTimeMillis() - getLatestTimestamp()) / 1000).toInt()
-            currentTime = System.currentTimeMillis()
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        tapCount++
-                        if (isTripEnded(commuteType, tapCount)) {
-                            insertTimeStamp(commuteType, 1)
-                            navController.navigate(Constants.RECORDS)
-                        } else {
-                            insertTimeStamp(commuteType)
-                            elapsedSeconds = 0
-                        }
+            .then(
+                if (!isTripEnded(commuteType, tapCount)) {
+                    Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                tapCount++
+                                if (isTripEnded(commuteType, tapCount)) {
+                                    insertTimeStamp(commuteType, 1)
+                                    navController.navigate(Constants.RECORDS)
+                                } else {
+                                    insertTimeStamp(commuteType)
+                                    elapsedSeconds = 0
+                                }
+                            }
+                        )
                     }
-                )
-            }
+                } else {
+                    Modifier // no gestures after trip ends
+                }
+            )
             .background(backgroundColor),
-        contentAlignment = Alignment.Center,
-    ) {
+        contentAlignment = Alignment.Center
+    )
+    {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = getCurrentTime(currentTime),
+                text = getCurrentTime(),
                 fontSize = 30.sp,
                 color = textColor
             )
@@ -387,13 +395,6 @@ fun insertTimeStamp(commuteType: Int, isFinished: Int = 0) {
 @Composable
 fun DisplayRecords() {
     val id = SharedPreferences.read("id", 0)
-    val records = mutableListOf<JourneyModel>()
-
-    for (i in (id - 1) downTo 0) {
-        val commute = SharedPreferences.read("${i}_commute", 0)
-        val timestamps = SharedPreferences.read("${i}_timestamps", "").toString().split(",")
-        records.add(JourneyModel(i, commute, timestamps.map { it.toLong() }))
-    }
 
     LazyColumn(
         modifier = Modifier
@@ -401,8 +402,18 @@ fun DisplayRecords() {
             .padding(11.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(records) { record ->
-            JourneyCard(record)
+        items(id) { index ->
+            val i = id - 1 - index  // so newest comes first
+            val commute = SharedPreferences.read("${i}_commute", 0)
+            val timestampsString = SharedPreferences.read("${i}_timestamps", "").toString()
+
+            val timestamps = if (timestampsString.isNotBlank()) {
+                timestampsString.split(",").mapNotNull { it.toLongOrNull() }
+            } else {
+                emptyList()
+            }
+
+            JourneyCard(JourneyModel(i, commute, timestamps))
         }
     }
 }
@@ -555,7 +566,6 @@ fun JourneyCard(journey: JourneyModel) {
     }
 }
 
-
 fun formatTimestamp(timestamp: Long?): String {
     return if (timestamp != null) {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
@@ -565,7 +575,7 @@ fun formatTimestamp(timestamp: Long?): String {
     }
 }
 
-fun getCurrentTime(timestamp: Long?): String {
+fun getCurrentTime(): String {
     val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     return sdf.format(Date(System.currentTimeMillis()))
 }
@@ -600,4 +610,3 @@ fun calculateTotalTime(timestamps: List<Long>): String {
         "N/A"
     }
 }
-
