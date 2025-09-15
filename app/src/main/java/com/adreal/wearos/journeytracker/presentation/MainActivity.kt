@@ -275,7 +275,12 @@ fun TimerScreen(commuteType: Int, navController: NavController) {
                                 tapCount++
                                 if (isTripEnded(commuteType, tapCount)) {
                                     insertTimeStamp(commuteType, 1)
-                                    navController.navigate(Constants.RECORDS)
+                                    navController.navigate(Constants.RECORDS) {
+                                        popUpTo(Constants.HOME_SCREEN) {
+                                            inclusive = false // keep HOME_SCREEN in the stack
+                                        }
+                                        launchSingleTop = true
+                                    }
                                 } else {
                                     insertTimeStamp(commuteType)
                                     elapsedSeconds = 0
@@ -403,6 +408,7 @@ fun DisplayRecords() {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(id) { index ->
+            Log.d("Records", "Loading record for index: $index")
             val i = id - 1 - index  // so newest comes first
             val commute = SharedPreferences.read("${i}_commute", 0)
             val timestampsString = SharedPreferences.read("${i}_timestamps", "").toString()
