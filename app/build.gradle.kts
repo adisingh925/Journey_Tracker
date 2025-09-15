@@ -5,13 +5,13 @@ plugins {
 
 android {
     namespace = "com.adreal.wearos.journeytracker"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.adreal.wearos.journeytracker"
         minSdk = 30
         targetSdk = 34
-        versionCode = 3
+        versionCode = 4
         versionName = "1.0"
         vectorDrawables {
             useSupportLibrary = true
