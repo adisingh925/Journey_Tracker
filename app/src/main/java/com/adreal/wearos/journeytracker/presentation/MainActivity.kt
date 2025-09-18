@@ -20,6 +20,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,11 +28,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.AlertDialog
 import androidx.compose.material.Card
 import androidx.compose.material.FloatingActionButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -158,6 +164,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DisplayRideButtons(navController: NavController) {
+    var showDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (isIncompleteJourney()) {
@@ -168,23 +175,22 @@ fun DisplayRideButtons(navController: NavController) {
 
     Box(
         modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center // center content in screen
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // First row
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FloatingActionButton(
                     onClick = { navController.navigate("${Constants.TIMER}/${Constants.MOTORCYCLE}") },
                     modifier = Modifier
-                        .height(60.dp)
-                        .width(60.dp),
+                        .size(80.dp)
+                        .padding(10.dp),
                     backgroundColor = Color.DarkGray
                 ) {
                     Icon(
@@ -196,8 +202,8 @@ fun DisplayRideButtons(navController: NavController) {
                 FloatingActionButton(
                     onClick = { navController.navigate("${Constants.TIMER}/${Constants.CYCLE}") },
                     modifier = Modifier
-                        .height(60.dp)
-                        .width(60.dp),
+                        .size(80.dp)
+                        .padding(10.dp),
                     backgroundColor = Color.DarkGray
                 ) {
                     Icon(
@@ -206,23 +212,77 @@ fun DisplayRideButtons(navController: NavController) {
                         contentDescription = "Cycle"
                     )
                 }
+            }
+
+            // Second row
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 FloatingActionButton(
                     onClick = { navController.navigate(Constants.RECORDS) },
                     modifier = Modifier
-                        .height(60.dp)
-                        .width(60.dp),
+                        .size(80.dp)
+                        .padding(10.dp),
                     backgroundColor = Color.DarkGray
                 ) {
                     Icon(
                         modifier = Modifier.padding(10.dp),
                         painter = painterResource(id = R.drawable.analytics),
-                        contentDescription = "Cycle"
+                        contentDescription = "Analytics"
+                    )
+                }
+                FloatingActionButton(
+                    onClick = { showDialog = true },
+                    modifier = Modifier
+                        .size(80.dp)
+                        .padding(10.dp),
+                    backgroundColor = Color.Red
+                ) {
+                    Icon(
+                        modifier = Modifier.padding(10.dp),
+                        painter = painterResource(id = R.drawable.delete),
+                        contentDescription = "Delete"
                     )
                 }
             }
         }
     }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = {
+                Text(
+                    text = "Are you sure?",
+                    style = MaterialTheme.typography.body1,
+                    color = Color.White
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        SharedPreferences.deleteAll()
+                        showDialog = false
+                    }
+                ) {
+                    Text("Yes", color = Color.Red, fontSize = 14.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancel", color = Color.Gray, fontSize = 14.sp)
+                }
+            },
+            backgroundColor = Color(0xFF2C2C2C),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .width(180.dp)        // 🔥 super small width
+                .wrapContentHeight()  // minimal height
+        )
+    }
 }
+
 
 fun getTapCount(): Int {
     val id = SharedPreferences.read("id", 0)
@@ -401,28 +461,46 @@ fun insertTimeStamp(commuteType: Int, isFinished: Int = 0) {
 fun DisplayRecords() {
     val id = SharedPreferences.read("id", 0)
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(11.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(id) { index ->
-            Log.d("Records", "Loading record for index: $index")
-            val i = id - 1 - index  // so newest comes first
-            val commute = SharedPreferences.read("${i}_commute", 0)
-            val timestampsString = SharedPreferences.read("${i}_timestamps", "").toString()
+    if (id == 0) {
+        // Show empty state
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No records available",
+                style = MaterialTheme.typography.body1,
+                color = Color.Gray
+            )
+        }
+    } else {
+        // Show records
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(11.dp)
+        ) {
+            items(id) { index ->
+                Log.d("Records", "Loading record for index: $index")
+                val i = id - 1 - index  // so newest comes first
+                val commute = SharedPreferences.read("${i}_commute", 0)
+                val timestampsString = SharedPreferences.read("${i}_timestamps", "").toString()
 
-            val timestamps = if (timestampsString.isNotBlank()) {
-                timestampsString.split(",").mapNotNull { it.toLongOrNull() }
-            } else {
-                emptyList()
+                val timestamps = if (timestampsString.isNotBlank()) {
+                    timestampsString.split(",").mapNotNull { it.toLongOrNull() }
+                } else {
+                    emptyList()
+                }
+
+                JourneyCard(JourneyModel(i, commute, timestamps))
             }
-
-            JourneyCard(JourneyModel(i, commute, timestamps))
         }
     }
 }
+
 
 @Composable
 fun JourneyCard(journey: JourneyModel) {
@@ -431,146 +509,67 @@ fun JourneyCard(journey: JourneyModel) {
             .fillMaxWidth()
             .padding(8.dp),
         elevation = 4.dp,
-        shape = RoundedCornerShape(11.dp) // Rounded corners with 11.dp radius
+        shape = RoundedCornerShape(11.dp),
+        backgroundColor = Color(0xFF2C2C2C) // 👈 set dark background here
     ) {
         Column(
-            modifier = Modifier
-                .background(Color.DarkGray)
-                .padding(11.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
             val endTime = formatTimestamp(journey.timestamps.lastOrNull())
             val totalTime = calculateTotalTime(journey.timestamps)
 
+            // Title
             Text(
                 text = if (journey.commute == Constants.MOTORCYCLE) "Motorcycle" else "Cycle",
-                fontSize = 20.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (journey.commute == Constants.MOTORCYCLE) {
-                Text(
-                    text = "Riding Started",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                LabelValue("Riding Started", formatTimestamp(journey.timestamps[0]))
+                LabelValue(
+                    "Riding Finished / Walking Started",
+                    formatTimestamp(journey.timestamps[1])
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatTimestamp(journey.timestamps[0]),
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Riding Finished / Walking Started",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatTimestamp(journey.timestamps[1]),
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Walking Finished",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = endTime,
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Journey Time",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = totalTime,
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
+                LabelValue("Walking Finished", endTime)
+                LabelValue("Journey Time", totalTime)
             } else {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Walking Started",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                LabelValue("Walking Started", formatTimestamp(journey.timestamps[0]))
+                LabelValue(
+                    "Walking Finished / Riding Started",
+                    formatTimestamp(journey.timestamps[1])
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatTimestamp(journey.timestamps[0]),
-                    fontSize = 11.sp,
-                    color = Color.White
+                LabelValue(
+                    "Riding Finished / Walking Started",
+                    formatTimestamp(journey.timestamps[2])
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Walking Finished / Riding Started",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatTimestamp(journey.timestamps[1]),
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Riding Finished / Walking Started",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatTimestamp(journey.timestamps[2]),
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Walking Finished",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatTimestamp(journey.timestamps[3]),
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Journey Time",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = totalTime,
-                    fontSize = 11.sp,
-                    color = Color.White
-                )
+                LabelValue("Walking Finished", formatTimestamp(journey.timestamps[3]))
+                LabelValue("Journey Time", totalTime)
             }
         }
     }
 }
+
+
+@Composable
+fun LabelValue(label: String, value: String) {
+    Text(
+        text = label,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.White
+    )
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(
+        text = value,
+        fontSize = 11.sp,
+        color = Color.White
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+}
+
 
 fun formatTimestamp(timestamp: Long?): String {
     return if (timestamp != null) {
